@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>短歌行 - 互动挑战</title>
+    <style>
+        body { background: #f4f1de; margin: 0; height: 100vh; display: flex; flex-direction: column; align-items: center; font-family: "PingFang SC", "STKaiti", serif; overflow: hidden; }
+        #login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f4f1de; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
+        #login-box { background: white; padding: 30px; border-radius: 20px; border: 3px solid #3d405b; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        #intro { width: 90%; max-width: 900px; background: #f2cc8f; padding: 8px 20px; border-radius: 10px; margin: 8px 0; line-height: 1.4; color: #3d405b; font-size: 14px; border-left: 8px solid #e07a5f; }
+        #poetry-display { width: 90%; max-width: 950px; background: #fffdf0; padding: 15px; border: 2px solid #3d405b; border-radius: 10px; text-align: center; box-shadow: inset 0 0 30px rgba(0,0,0,0.05); }
+        .title-row { font-size: 26px; font-weight: bold; margin-bottom: 2px; color: #3d405b; letter-spacing: 12px; }
+        .author-row { font-size: 16px; margin-bottom: 10px; color: #666; letter-spacing: 4px; }
+        .poem-row { display: flex; justify-content: center; gap: 10px; margin-bottom: 5px; }
+        .sentence-box { display: flex; align-items: center; white-space: nowrap; }
+        .poem-char { display: inline-block; width: 22px; color: #ccc; transition: all 0.4s; font-size: 20px; }
+        .char-highlight { color: #e07a5f; transform: scale(1.15); font-weight: bold; }
+        .punc { color: #aaa; margin: 0 4px 0 1px; font-size: 18px; width: 12px; }
+        #stage-info { margin-top: 5px; font-size: 14px; color: #81b29a; font-weight: bold; }
+        /* 优化池子容器：使用 Grid 布局确保绝对整齐 */
+#pool { 
+    width: 900px; 
+    height: 180px; 
+    border: 2px dashed #3d405b; 
+    padding: 15px; 
+    display: grid; 
+    grid-template-columns: repeat(12, 1fr); /* 每行固定12个 */
+    gap: 10px; 
+    justify-items: center; 
+    align-content: start;
+    background: rgba(255,255,255,0.5); 
+    border-radius: 10px; 
+    margin-top: 5px;
+    overflow-y: auto; /* 如果碎多，允许内部滚动 */
+}
+
+/* 优化卡片：隐藏内部图片的蓝色边框 */
+.card { 
+    width: 52px; 
+    height: 52px; 
+    background: white; 
+    border: 2px solid #333; 
+    border-radius: 6px; 
+    cursor: pointer; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    box-shadow: 0 3px 0 #333; 
+    transition: all 0.1s;
+    overflow: hidden; /* 关键：隐藏图片溢出的边框 */
+}
+
+.card:hover {
+    transform: scale(1.05);
+    background-color: #fdf2e9;
+}
+
+.card img { 
+    max-width: 110%; /* 稍微放大一点点，把图片自带的边框挤出去 */
+    max-height: 110%; 
+    object-fit: contain;
+}
+       /* 优化后的槽位容器 */
+#slots { 
+    width: 450px; 
+    height: 75px; /* 稍微加高，确保能装下卡片 */
+    background: #3d405b; 
+    margin-top: 15px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: flex-start; /* 卡片从左往右排 */
+    padding: 0 15px; 
+    gap: 10px; 
+    border-radius: 12px; 
+    box-shadow: inset 0 4px 10px rgba(0,0,0,0.3); /* 增加内阴影，更有容器感 */
+    border: 2px solid #2a2d45;
+}
+
+/* 专门为槽位内的卡片定义的样式（可选） */
+#slots .card {
+    width: 48px; 
+    height: 48px; 
+    box-shadow: none; /* 在槽位里去掉外部阴影，防止视觉混乱 */
+    border: 1px solid #eee; /* 细白边，使其在深色背景上更清晰 */
+    transform: scale(0.95); /* 进入槽位后微缩，确保不溢出 */
+}
+        #message { margin-top: 8px; font-size: 18px; color: #e07a5f; font-weight: bold; height: 24px; opacity: 0; transition: opacity 0.5s; }
+        .show-msg { opacity: 1 !important; }
+        #win-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; }
+        .modal-content { background: #fffdf0; padding: 40px; border-radius: 20px; border: 5px double #e07a5f; text-align: center; }
+        .modal-content h2 { color: #e07a5f; margin-bottom: 20px; font-size: 28px; }
+        .modal-content button { padding: 10px 30px; background: #3d405b; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 18px; }
+    </style>
+</head>
+<body>
+
+<div id="login-screen">
+    <div id="login-box">
+        <h2 style="color:#3d405b">《短歌行》互动挑战</h2>
+        <p>请输入姓名开始：</p>
+        <input type="text" id="student-name" style="padding:10px; font-size:18px; text-align:center; border-radius:8px; border:2px solid #ccc;"><br><br>
+        <button onclick="startGame()" style="padding:10px 30px; font-size:18px; background:#e07a5f; color:white; border:none; border-radius:8px; cursor:pointer;">开始挑战</button>
+    </div>
+</div>
+
+<div id="win-modal">
+    <div class="modal-content">
+        <h2 id="win-text"></h2>
+        <button onclick="location.reload()">再挑战一次</button>
+    </div>
+</div>
+
+<div id="intro">
+    每个汉字拆为两个部件。请考虑汉字的<b>笔画、字形、位置</b>。要求：<b>按诗句顺序</b>逐字配对。
+</div>
+
+<div id="poetry-display">
+    <div class="title-row" id="title-area"></div>
+    <div class="author-row" id="author-area"></div>
+    <div id="main-poetry"></div>
+</div>
+
+<div id="stage-info">正在加载...</div>
+<div id="pool"></div>
+<div id="slots"></div>
+<div id="message"></div>
+
+<script>
+    const wordMap = {
+        'duan2':'短','ge':'歌','xing':'行','cao2':'曹','cao':'操','dui':'对','jiu':'酒','dang':'当','ren':'人','sheng':'生','ji':'几','he':'何','pi':'譬','ru':'如','zhao':'朝','lu':'露','qu':'去','ri':'日','ku':'苦','duo':'多','kai':'慨','yi':'以','kang':'慷','you':'忧','si':'思','nan3':'难','wang':'忘','jie':'解','wei':'唯','you2':'有','du2':'杜','kang2':'康','qing':'青','zi':'子','jin':'衿','you11':'悠','wo':'我','xin':'心','dan':'但','wei2':'为','jun':'君','gu':'故','chen':'沉','yin':'吟','zhi2':'至','jin2':'今','you111':'呦','lu4':'鹿','ming2':'鸣','shi22':'食','ye3':'野','zhi':'之','ping':'苹','jia1':'嘉','bin':'宾','gu33':'鼓','se':'瑟','chui':'吹','sheng1':'笙','ming':'明','yue':'月','shi2':'时','ke':'可','duo1':'掇','cong':'从','zhong':'中','lai':'来','bu':'不','jue':'绝','yue4':'越','mo':'陌','du':'度','qian':'阡','wang3':'枉','yong':'用','xiang':'相','cun':'存','qi':'契','kuo':'阔','tan':'谈','yan2':'宴','nian':'念','jiu4':'旧','en':'恩','xing1':'星','xi':'稀','wu':'乌','que':'鹊','nan':'南','fei':'飞','rao':'绕','shu':'树','san':'三','za':'匝','zhi1':'枝','yi1':'依','shan':'山','yan4':'厌','gao':'高','shui':'水','shen':'深','zhou':'周','gong':'公','tu':'吐','bu3':'哺','tian':'天','xia':'下','gui':'归',
+        'duan':'断' // 确保“断”在字典里存在
+    };
+
+    const titleSeq = ['duan2', 'ge', 'xing'];
+    const authorSeq = ['cao2', 'cao'];
+    
+    const bodyGroups = [
+        ['dui','jiu','dang','ge','ren','sheng','ji','he','pi','ru','zhao','lu','qu','ri','ku','duo'], 
+        ['kai','dang','yi','kang','you','si','nan3','wang','he','yi','jie','you','wei','you2','du2','kang2'], 
+        ['qing','qing','zi','jin','you11','you11','wo','xin','dan','wei2','jun','gu','chen','yin','zhi2','jin2'], 
+        ['you111','you111','lu4','ming2','shi22','ye3','zhi','ping','wo','you2','jia1','bin','gu33','se','chui','sheng1'], 
+        ['ming','ming','ru','yue','he','shi2','ke','duo1','you','cong','zhong','lai','bu','ke','duan','jue'], 
+        ['yue4','mo','du','qian','wang3','yong','xiang','cun','qi','kuo','tan','yan2','xin','nian','jiu4','en'], 
+        ['yue','ming','xing1','xi','wu','que','nan','fei','rao','shu','san','za','he','zhi1','ke','yi1'], 
+        ['shan','bu','yan4','gao','shui','bu','yan4','shen','zhou','gong','tu','bu3','tian','xia','gui','xin']
+    ];
+
+    let flatFullPoetry = [...titleSeq, ...authorSeq, ...bodyGroups.flat()];
+    let currentStage = 0; 
+    let globalCharIndex = 0;
+    let slotCards = [];
+    let cardsData = [];
+    let studentName = "";
+    let msgTimer = null;
+
+    function startGame() {
+        studentName = document.getElementById('student-name').value;
+        if (!studentName) return;
+        document.getElementById('login-screen').style.display = 'none';
+        initDisplay();
+        loadStage(0); 
+    }
+
+    function createSpan(id, idx) {
+        const span = document.createElement('span');
+        span.className = 'poem-char';
+        span.id = `text-${idx}`;
+        span.innerText = wordMap[id] || '？';
+        return span;
+    }
+
+    function initDisplay() {
+        let idx = 0;
+        titleSeq.forEach(id => document.getElementById('title-area').appendChild(createSpan(id, idx++)));
+        authorSeq.forEach(id => document.getElementById('author-area').appendChild(createSpan(id, idx++)));
+        const main = document.getElementById('main-poetry');
+        bodyGroups.forEach((rowArr) => {
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'poem-row';
+            for(let i=0; i<rowArr.length; i+=4) {
+                const box = document.createElement('div');
+                box.className = 'sentence-box';
+                for(let j=0; j<4; j++) {
+                    if(rowArr[i+j]) box.appendChild(createSpan(rowArr[i+j], idx++));
+                }
+                const p = document.createElement('span');
+                p.className = 'punc';
+                p.innerText = (i % 8 === 0) ? '，' : '。';
+                box.appendChild(p);
+                rowDiv.appendChild(box);
+            }
+            main.appendChild(rowDiv);
+        });
+    }
+
+    function loadStage(sIdx) {
+        currentStage = sIdx;
+        document.getElementById('stage-info').innerText = sIdx === 0 ? "第一阶段：题目与作者" : `挑战中：第 ${sIdx} / 8 组诗句`;
+        cardsData = [];
+        let stageIds = (sIdx === 0) ? [...titleSeq, ...authorSeq] : bodyGroups[sIdx-1];
+        stageIds.forEach(id => {
+            cardsData.push({ id, type: 'a', src: `${id}_a.png`, inst: Math.random() });
+            cardsData.push({ id, type: 'b', src: `${id}_b.png`, inst: Math.random() });
+        });
+        cardsData.sort(() => Math.random() - 0.5);
+        renderPool();
+        renderSlots();
+    }
+
+    function renderPool() {
+        const p = document.getElementById('pool'); p.innerHTML = '';
+        cardsData.forEach(d => {
+            const c = document.createElement('div'); c.className = 'card';
+            c.innerHTML = `<img src="${d.src}">`;
+            c.onclick = () => {
+                if (slotCards.length < 7) {
+                    cardsData = cardsData.filter(i => i.inst !== d.inst);
+                    slotCards.push(d); renderPool(); renderSlots(); checkMatch();
+                }
+            };
+            p.appendChild(c);
+        });
+    }
+
+    function renderSlots() {
+        const s = document.getElementById('slots'); s.innerHTML = '';
+        slotCards.forEach(d => {
+            const div = document.createElement('div'); div.className = 'card';
+            div.innerHTML = `<img src="${d.src}">`;
+            div.onclick = () => {
+                slotCards = slotCards.filter(i => i.inst !== d.inst);
+                cardsData.push(d); renderPool(); renderSlots();
+            };
+            s.appendChild(div);
+        });
+    }
+
+    function showHint(txt) {
+        const m = document.getElementById('message');
+        m.innerText = txt;
+        m.classList.add('show-msg');
+        if(msgTimer) clearTimeout(msgTimer);
+        msgTimer = setTimeout(() => { m.classList.remove('show-msg'); }, 3000);
+    }
+
+    function checkMatch() {
+        const targetId = flatFullPoetry[globalCharIndex];
+        const a = slotCards.find(c => c.id === targetId && c.type === 'a');
+        const b = slotCards.find(c => c.id === targetId && c.type === 'b');
+        if (a && b) {
+            setTimeout(() => {
+                slotCards = slotCards.filter(c => c.inst !== a.inst && c.inst !== b.inst);
+                document.getElementById(`text-${globalCharIndex}`).classList.add('char-highlight');
+                globalCharIndex++; renderSlots();
+                let stageEnd = (currentStage === 0) ? 5 : 5 + bodyGroups.slice(0, currentStage).flat().length;
+                if (globalCharIndex >= stageEnd && currentStage < 8) {
+                    loadStage(currentStage + 1);
+                } else if (globalCharIndex >= flatFullPoetry.length) {
+                    document.getElementById('win-text').innerText = `恭喜 ${studentName} 同学，全诗背诵挑战成功！`;
+                    document.getElementById('win-modal').style.display = 'flex';
+                }
+            }, 300);
+        } else if (slotCards.length >= 2) {
+            showHint(`请按顺序拼写：${wordMap[targetId]}`);
+        }
+    }
+</script>
+</body>
+</html>
